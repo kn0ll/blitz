@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    env_file:
+      - .env
+      - .env.local
+    ports:
+      - ${PORT}:${PORT}
+    volumes:
+      - ./:/opt/app
+      - /opt/app/node_modules
+      - /opt/app/.blitz
+      - /opt/app/.next
+
+  # for testing, should be removed
+  prod:
+    build:
+      context: .
+      target: prod
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        PORT: ${PORT}
+    ports:
+      - ${PORT}:${PORT}
+    environment:
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY}
