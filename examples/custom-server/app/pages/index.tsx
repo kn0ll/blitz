@@ -1,6 +1,7 @@
-import {Link, BlitzPage, useMutation} from "blitz"
+import {Link, BlitzPage, useMutation, useSubscription} from "blitz"
 import Layout from "app/layouts/Layout"
 import logout from "app/auth/mutations/logout"
+import getServerTime from "app/server-time/subscriptions/getServerTime"
 import {useCurrentUser} from "app/hooks/useCurrentUser"
 import {Suspense} from "react"
 
@@ -47,6 +48,12 @@ const UserInfo = () => {
       </>
     )
   }
+}
+
+const ServerTime = () => {
+  const time = useSubscription(getServerTime)
+
+  return <h4>Server Time: {time}</h4>
 }
 
 const Home: BlitzPage = () => {
@@ -121,6 +128,7 @@ const Home: BlitzPage = () => {
         </div>
       </main>
 
+      <ServerTime />
       <footer>
         <a
           href="https://blitzjs.com?utm_source=blitz-new&utm_medium=app-template&utm_campaign=blitz-new"

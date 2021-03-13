@@ -21,6 +21,15 @@ const rpcMiddleware = <TInput, TResult>(
 ): Middleware => {
   return async (req, res, next) => {
     const log = baseLogger().getChildLogger({prefix: [resolver._meta.name + "()"]})
+    const paramsError = (message: string) => {
+      const error = {message}
+      log.error(error.message)
+      res.status(400).json({
+        result: null,
+        error,
+      })
+      return next()
+    }
 
     if (req.method === "HEAD") {
       // Warm the lamda and connect to DB
@@ -29,21 +38,25 @@ const rpcMiddleware = <TInput, TResult>(
       }
       res.status(200).end()
       return next()
-    } else if (req.method === "POST") {
+    }
+
+    const isPost = req.method === "POST"
+    if (req.method === "GET" || isPost) {
       // Handle RPC call
 
-      if (typeof req.body.params === "undefined") {
-        const error = {message: "Request body is missing the `params` key"}
-        log.error(error.message)
-        res.status(400).json({
-          result: null,
-          error,
-        })
-        return next()
+      if (isPost) {
+        if (typeof req.body.params === "undefined") {
+          return paramsError("Request body is missing the `params` key")
+        }
+      } else {
+        if (typeof req.query.params === "undefined") {
+          return paramsError("Request query is missing the `params` key")
+        }
       }
 
       try {
-        const data = deserialize({json: req.body.params, meta: req.body.meta?.params}) as TInput
+        const paramSrc = isPost ? req.body : req.query
+        const data = deserialize({json: paramSrc.params, meta: paramSrc.meta?.params}) as TInput
 
         log.info(chalk.dim("Starting with input:"), data ? data : JSON.stringify(data))
         const startTime = Date.now()
@@ -51,6 +64,7 @@ const rpcMiddleware = <TInput, TResult>(
 
         if (resultIsPromise(results)) {
           const result = await results
+
           const resolverDuration = Date.now() - startTime
           log.debug(chalk.dim("Result:"), result ? result : JSON.stringify(result))
 
@@ -88,17 +102,20 @@ const rpcMiddleware = <TInput, TResult>(
           res.on("close", async () => await results.return())
 
           for await (const result of results) {
+            const serializedResult = serialize(result)
             res.write(
               `data: ${JSON.stringify({
-                result,
+                result: serializedResult.json,
                 error: null,
-                meta: {},
+                meta: {
+                  result: serializedResult.meta,
+                },
               })}\n\n`,
             )
           }
         }
-
         displayLog.newline()
+
         return next()
       } catch (error) {
         if (error._clearStack) {
@@ -122,12 +139,12 @@ const rpcMiddleware = <TInput, TResult>(
         })
         return next()
       }
-    } else {
-      // Everything else is error
-      log.warn(`${req.method} method not supported`)
-      res.status(404).end()
-      return next()
     }
+
+    // Everything else is error
+    log.warn(`${req.method} method not supported`)
+    res.status(404).end()
+    return next()
   }
 }
 
