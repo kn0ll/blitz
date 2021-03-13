@@ -57,7 +57,7 @@ export function withBlitz(nextConfig: any) {
 
             config.plugins.push(
               new options.webpack.NormalModuleReplacementPlugin(
-                /[/\\]?(mutations|queries)[/\\]/,
+                /[/\\]?(mutations|queries|subscriptions)[/\\]/,
                 (resource: any) => {
                   const request = resource.request as string
                   if (request.includes("_resolvers")) {
@@ -79,7 +79,7 @@ export function withBlitz(nextConfig: any) {
             )
           } else {
             config.module.rules.push({
-              issuer: /(mutations|queries)(?!.*\.client)/,
+              issuer: /(mutations|queries|subscriptions)(?!.*\.client)/,
               resource: /_resolvers/,
               use: {loader: "null-loader"},
             })

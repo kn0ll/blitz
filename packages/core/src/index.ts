@@ -9,6 +9,7 @@ export {useQuery, usePaginatedQuery, useInfiniteQuery} from "./use-query-hooks"
 export {getQueryKey, invalidateQuery, setQueryData} from "./utils/react-query-utils"
 export {getIsomorphicEnhancedResolver} from "./rpc-client"
 export {useMutation} from "./use-mutation"
+export {useSubscription} from "./use-subscription"
 export {invoke} from "./invoke"
 export {getBlitzRuntimeData} from "./blitz-data"
 

@@ -112,8 +112,10 @@ export type ConnectMiddleware = (
   next: (error?: Error) => void,
 ) => void
 
+export type ResolverResult<TResult> = Promise<TResult> | AsyncGenerator<TResult, void, unknown>
+
 // The actual resolver source definition
-export type Resolver<TInput, TResult> = (input: TInput, ctx?: any) => Promise<TResult>
+export type Resolver<TInput, TResult> = (input: TInput, ctx?: any) => ResolverResult<TResult>
 
 // Resolver type when imported with require()
 export type ResolverModule<TInput, TResult> = {
@@ -138,7 +140,7 @@ export interface ResolverRpcExecutor<TInput, TResult> {
   warm: (apiUrl: string) => undefined | Promise<unknown>
 }
 
-export type ResolverType = "query" | "mutation"
+export type ResolverType = "query" | "mutation" | "subscription"
 
 export interface ResolverEnhancement {
   _meta: {
@@ -210,6 +212,11 @@ export declare type MutationFunction<TResult, TVariables = unknown> = (
   variables: TVariables,
   ctx?: any,
 ) => Promise<TResult>
+
+export declare type SubscriptionFunction<TResult, TVariables = unknown> = (
+  variables: TVariables,
+  ctx?: any,
+) => AsyncGenerator<TResult, void, unknown>
 
 export interface ErrorFallbackProps {
   error: Error & Record<any, any>

@@ -9,7 +9,7 @@ const debug = require("debug")("blitz:stage:rpc")
 
 export const resolverFullBuildPathRegex = /[\\/]app[\\/]_resolvers[\\/]/
 export const resolverBuildFolderReplaceRegex = /_resolvers[\\/]/g
-export const resolverPathRegex = /(?:app[\\/])(?!_resolvers).*(?:queries|mutations)[\\/].+/
+export const resolverPathRegex = /(?:app[\\/])(?!_resolvers).*(?:queries|mutations|subscriptions)[\\/].+/
 
 export function isResolverPath(filePath: string) {
   return resolverPathRegex.exec(filePath)
@@ -207,9 +207,17 @@ function resolutionPath(srcPath: string, filePath: string) {
 
 function extractTemplateVars(resolverImportPath: string) {
   const [, resolverTypePlural, resolverName] =
-    /(queries|mutations)\/(.*)$/.exec(resolverImportPath) || []
+    /(queries|mutations|subscriptions)\/(.*)$/.exec(resolverImportPath) || []
 
-  const resolverType: ResolverType = resolverTypePlural === "mutations" ? "mutation" : "query"
+  let resolverType: ResolverType = "query"
+  switch (resolverTypePlural) {
+    case "mutations":
+      resolverType = "mutation"
+      break
+    case "subscriptions":
+      resolverType = "subscription"
+      break
+  }
 
   return {
     resolverImportPath,

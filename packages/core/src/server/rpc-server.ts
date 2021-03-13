@@ -1,9 +1,19 @@
 import {baseLogger, log as displayLog} from "@blitzjs/display"
 import chalk from "chalk"
 import {deserialize, serialize} from "superjson"
-import {BlitzApiRequest, BlitzApiResponse, EnhancedResolver, Middleware} from "../types"
+import {
+  BlitzApiRequest,
+  BlitzApiResponse,
+  EnhancedResolver,
+  Middleware,
+  ResolverResult,
+} from "../types"
 import {prettyMs} from "../utils/pretty-ms"
 import {handleRequestWithMiddleware} from "./middleware"
+
+const resultIsPromise = <TResult>(result: ResolverResult<TResult>): result is Promise<TResult> => {
+  return (result as Promise<TResult>).then !== undefined
+}
 
 const rpcMiddleware = <TInput, TResult>(
   resolver: EnhancedResolver<TInput, TResult>,
@@ -37,37 +47,58 @@ const rpcMiddleware = <TInput, TResult>(
 
         log.info(chalk.dim("Starting with input:"), data ? data : JSON.stringify(data))
         const startTime = Date.now()
-        const result = await resolver(data, res.blitzCtx)
-        const resolverDuration = Date.now() - startTime
-        log.debug(chalk.dim("Result:"), result ? result : JSON.stringify(result))
+        const results = resolver(data, res.blitzCtx)
 
-        const serializerStartTime = Date.now()
-        const serializedResult = serialize(result)
+        if (resultIsPromise(results)) {
+          const result = await results
+          const resolverDuration = Date.now() - startTime
+          log.debug(chalk.dim("Result:"), result ? result : JSON.stringify(result))
 
-        const nextSerializerStartTime = Date.now()
-        res.blitzResult = result
-        res.json({
-          result: serializedResult.json,
-          error: null,
-          meta: {
-            result: serializedResult.meta,
-          },
-        })
-        log.debug(
-          chalk.dim(`Next.js serialization:${prettyMs(Date.now() - nextSerializerStartTime)}`),
-        )
-        const serializerDuration = Date.now() - serializerStartTime
-        const duration = Date.now() - startTime
+          const serializerStartTime = Date.now()
+          const serializedResult = serialize(result)
 
-        log.info(
-          chalk.dim(
-            `Finished: resolver:${prettyMs(resolverDuration)} serializer:${prettyMs(
-              serializerDuration,
-            )} total:${prettyMs(duration)}`,
-          ),
-        )
+          const nextSerializerStartTime = Date.now()
+          res.blitzResult = result
+          res.json({
+            result: serializedResult.json,
+            error: null,
+            meta: {
+              result: serializedResult.meta,
+            },
+          })
+          log.debug(
+            chalk.dim(`Next.js serialization:${prettyMs(Date.now() - nextSerializerStartTime)}`),
+          )
+          const serializerDuration = Date.now() - serializerStartTime
+          const duration = Date.now() - startTime
+
+          log.info(
+            chalk.dim(
+              `Finished: resolver:${prettyMs(resolverDuration)} serializer:${prettyMs(
+                serializerDuration,
+              )} total:${prettyMs(duration)}`,
+            ),
+          )
+        } else {
+          res.setHeader("Access-Control-Allow-Origin", "*")
+          res.setHeader("Content-Type", "text/event-stream;charset=utf-8")
+          res.setHeader("Cache-Control", "no-cache, no-transform")
+          res.setHeader("X-Accel-Buffering", "no")
+
+          res.on("close", async () => await results.return())
+
+          for await (const result of results) {
+            res.write(
+              `data: ${JSON.stringify({
+                result,
+                error: null,
+                meta: {},
+              })}\n\n`,
+            )
+          }
+        }
+
         displayLog.newline()
-
         return next()
       } catch (error) {
         if (error._clearStack) {

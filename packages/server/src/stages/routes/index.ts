@@ -6,7 +6,7 @@ import {transform} from "@blitzjs/file-pipeline"
  */
 export const createStageRoutes: Stage = ({getRouteCache}) => {
   const pagesPathRegex = /(pages[\\/][^_.].+(?<!\.test)\.(m?[tj]sx?|mdx))$/
-  const rpcPathRegex = /(api[\\/].+[\\/](queries|mutations).+)$/
+  const rpcPathRegex = /(api[\\/].+[\\/](queries|mutations|subscriptions).+)$/
   const apiPathRegex = /(api[\\/].+)$/
 
   const stream: NodeJS.ReadWriteStream = transform.file((file) => {
